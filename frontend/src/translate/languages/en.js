@@ -215,7 +215,6 @@ const messages = {
 				},
 				buttons: {
 					showAll: "All",
-					quickmessageflash: "Quick Message",
 				},
 			},
 			transferTicketModal: {
@@ -364,13 +363,6 @@ const messages = {
 			messageOptionsMenu: {
 				delete: "Delete",
 				reply: "Reply",
-				react: "React",
-        reactions: {
-          "like": "Like",
-          "love": "Love",
-          "haha": "Haha"
-        },
-        reactionSuccess: "Reaction added successfully!",
 				confirmationModal: {
 					title: "Delete message?",
 					message: "This action cannot be reverted.",

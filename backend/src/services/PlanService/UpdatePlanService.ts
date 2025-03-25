@@ -1,6 +1,5 @@
 import AppError from "../../errors/AppError";
 import Plan from "../../models/Plan";
-import ShowPlanService from "./ShowPlanService";
 
 interface PlanData {
   name: string;
@@ -8,30 +7,25 @@ interface PlanData {
   users?: number;
   connections?: number;
   queues?: number;
-  amount?: string;
-  useWhatsapp?: boolean;
-  useFacebook?: boolean;
-  useInstagram?: boolean;
-  useCampaigns?: boolean;
-  useSchedules?: boolean;
-  useInternalChat?: boolean;
-  useExternalApi?: boolean;
-  useKanban?: boolean;
-  useOpenAi?: boolean;
-  useIntegrations?: boolean;
-  isPublic?: boolean;
+  value?: number;
 }
 
 const UpdatePlanService = async (planData: PlanData): Promise<Plan> => {
-  const { id } = planData;
+  const { id, name, users, connections, queues, value } = planData;
 
-  let plan = await Plan.findByPk(id);
+  const plan = await Plan.findByPk(id);
 
   if (!plan) {
     throw new AppError("ERR_NO_PLAN_FOUND", 404);
   }
 
-  await plan.update(planData);
+  await plan.update({
+    name,
+    users,
+    connections,
+    queues,
+    value
+  });
 
   return plan;
 };

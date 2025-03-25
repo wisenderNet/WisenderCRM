@@ -2,8 +2,8 @@ import React, {
   useState,
   useEffect,
   useReducer,
+  useCallback,
   useContext,
-  useRef,
 } from "react";
 import { toast } from "react-toastify";
 
@@ -34,32 +34,51 @@ import TableRowSkeleton from "../../components/TableRowSkeleton";
 import TagModal from "../../components/TagModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import toastError from "../../errors/toastError";
-import { Chip, Tooltip } from "@material-ui/core";
+import { Chip } from "@material-ui/core";
+import { socketConnection } from "../../services/socket";
 import { AuthContext } from "../../context/Auth/AuthContext";
-import { MoreHoriz } from "@material-ui/icons";
-import ContactTagListModal from "../../components/ContactTagListModal";
 
 const reducer = (state, action) => {
-  switch (action.type) {
-    case "LOAD_TAGS":
-      return [...state, ...action.payload];
-    case "UPDATE_TAGS":
-      const tag = action.payload;
-      const tagIndex = state.findIndex((s) => s.id === tag.id);
+  if (action.type === "LOAD_TAGS") {
+    const tags = action.payload;
+    const newTags = [];
 
+    tags.forEach((tag) => {
+      const tagIndex = state.findIndex((s) => s.id === tag.id);
       if (tagIndex !== -1) {
         state[tagIndex] = tag;
-        return [...state];
       } else {
-        return [tag, ...state];
+        newTags.push(tag);
       }
-    case "DELETE_TAGS":
-      const tagId = action.payload;
-      return state.filter((tag) => tag.id !== tagId);
-    case "RESET":
-      return [];
-    default:
-      return state;
+    });
+
+    return [...state, ...newTags];
+  }
+
+  if (action.type === "UPDATE_TAGS") {
+    const tag = action.payload;
+    const tagIndex = state.findIndex((s) => s.id === tag.id);
+
+    if (tagIndex !== -1) {
+      state[tagIndex] = tag;
+      return [...state];
+    } else {
+      return [tag, ...state];
+    }
+  }
+
+  if (action.type === "DELETE_TAG") {
+    const tagId = action.payload;
+
+    const tagIndex = state.findIndex((s) => s.id === tagId);
+    if (tagIndex !== -1) {
+      state.splice(tagIndex, 1);
+    }
+    return [...state];
+  }
+
+  if (action.type === "RESET") {
+    return [];
   }
 };
 
@@ -74,58 +93,62 @@ const useStyles = makeStyles((theme) => ({
 
 const Tags = () => {
   const classes = useStyles();
-  const { user, socket } = useContext(AuthContext);
 
-  const [selectedTagContacts, setSelectedTagContacts] = useState([]);
-  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const { user } = useContext(AuthContext);
+
   const [loading, setLoading] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [selectedTagName, setSelectedTagName] = useState("");
   const [selectedTag, setSelectedTag] = useState(null);
   const [deletingTag, setDeletingTag] = useState(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [searchParam, setSearchParam] = useState("");
   const [tags, dispatch] = useReducer(reducer, []);
   const [tagModalOpen, setTagModalOpen] = useState(false);
-  const pageNumberRef = useRef(1);
 
-  useEffect(() => {
-    const fetchMoreTags = async () => {
-      try {
-        const { data } = await api.get("/tags/", {
-          params: { searchParam, pageNumber, kanban: 0 },
-        });
-        dispatch({ type: "LOAD_TAGS", payload: data.tags });
-        setHasMore(data.hasMore);
-        setLoading(false);
-      } catch (err) {
-        toastError(err);
-      }
-    };
-
-    if (pageNumber > 0) {
-      setLoading(true);
-      fetchMoreTags();
+  const fetchTags = useCallback(async () => {
+    try {
+      const { data } = await api.get("/tags/", {
+        params: { searchParam, pageNumber },
+      });
+      dispatch({ type: "LOAD_TAGS", payload: data.tags });
+      setHasMore(data.hasMore);
+      setLoading(false);
+    } catch (err) {
+      toastError(err);
     }
   }, [searchParam, pageNumber]);
 
   useEffect(() => {
-    const onCompanyTags = (data) => {
+    dispatch({ type: "RESET" });
+    setPageNumber(1);
+  }, [searchParam]);
+
+  useEffect(() => {
+    setLoading(true);
+    const delayDebounceFn = setTimeout(() => {
+      fetchTags();
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchParam, pageNumber, fetchTags]);
+
+  useEffect(() => {
+    const socket = socketConnection({ companyId: user.companyId });
+
+    socket.on("user", (data) => {
       if (data.action === "update" || data.action === "create") {
-        dispatch({ type: "UPDATE_TAGS", payload: data.tag });
+        dispatch({ type: "UPDATE_TAGS", payload: data.tags });
       }
 
       if (data.action === "delete") {
-        dispatch({ type: "DELETE_TAGS", payload: +data.tagId });
+        dispatch({ type: "DELETE_USER", payload: +data.tagId });
       }
-    };
-    socket.on(`company${user.companyId}-tag`, onCompanyTags);
+    });
 
     return () => {
-      socket.off(`company${user.companyId}-tag`, onCompanyTags);
+      socket.disconnect();
     };
-  }, [socket, user.companyId]);
+  }, [user]);
 
   const handleOpenTagModal = () => {
     setSelectedTag(null);
@@ -138,27 +161,12 @@ const Tags = () => {
   };
 
   const handleSearch = (event) => {
-    const newSearchParam = event.target.value.toLowerCase();
-    setSearchParam(newSearchParam);
-    setPageNumber(1);
-    dispatch({ type: "RESET" });
+    setSearchParam(event.target.value.toLowerCase());
   };
 
   const handleEditTag = (tag) => {
     setSelectedTag(tag);
     setTagModalOpen(true);
-  };
-
-  const handleShowContacts = (contacts, tag) => {
-    setSelectedTagContacts(contacts);
-    setContactModalOpen(true);
-    setSelectedTagName(tag);
-  };
-
-  const handleCloseContactModal = () => {
-    setContactModalOpen(false);
-    setSelectedTagContacts([]);
-    setSelectedTagName("");
   };
 
   const handleDeleteTag = async (tagId) => {
@@ -171,10 +179,14 @@ const Tags = () => {
     setDeletingTag(null);
     setSearchParam("");
     setPageNumber(1);
+
+    dispatch({ type: "RESET" });
+    setPageNumber(1);
+    await fetchTags();
   };
 
   const loadMore = () => {
-    setPageNumber((prevPageNumber) => prevPageNumber + 1);
+    setPageNumber((prevState) => prevState + 1);
   };
 
   const handleScroll = (e) => {
@@ -186,18 +198,11 @@ const Tags = () => {
   };
 
   return (
-    <MainContainer className={classes.mainContainer}>
-      {contactModalOpen && (
-        <ContactTagListModal
-          open={contactModalOpen}
-          onClose={handleCloseContactModal}
-          tag={selectedTagName}
-        />
-      )}
+    <MainContainer>
       <ConfirmationModal
         title={deletingTag && `${i18n.t("tags.confirmationModal.deleteTitle")}`}
         open={confirmModalOpen}
-        onClose={() => setConfirmModalOpen(false)}
+        onClose={setConfirmModalOpen}
         onConfirm={() => handleDeleteTag(deletingTag.id)}
       >
         {i18n.t("tags.confirmationModal.deleteMessage")}
@@ -205,12 +210,12 @@ const Tags = () => {
       <TagModal
         open={tagModalOpen}
         onClose={handleCloseTagModal}
+        reload={fetchTags}
         aria-labelledby="form-dialog-title"
         tagId={selectedTag && selectedTag.id}
-        kanban={0}
       />
       <MainHeader>
-        <Title>{i18n.t("tags.title")} ({tags.length})</Title>
+        <Title>{i18n.t("tags.title")}</Title>
         <MainHeaderButtonsWrapper>
           <TextField
             placeholder={i18n.t("contacts.searchPlaceholder")}
@@ -242,10 +247,9 @@ const Tags = () => {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell align="center">{i18n.t("tags.table.id")}</TableCell>
               <TableCell align="center">{i18n.t("tags.table.name")}</TableCell>
               <TableCell align="center">
-                {i18n.t("tags.table.contacts")}
+                {i18n.t("tags.table.tickets")}
               </TableCell>
               <TableCell align="center">
                 {i18n.t("tags.table.actions")}
@@ -256,30 +260,19 @@ const Tags = () => {
             <>
               {tags.map((tag) => (
                 <TableRow key={tag.id}>
-                  <TableCell align="center">{tag.id}</TableCell>
                   <TableCell align="center">
                     <Chip
                       variant="outlined"
                       style={{
                         backgroundColor: tag.color,
-                        textShadow: "1px 1px #000",
+                        textShadow: "1px 1px 1px #000",
                         color: "white",
                       }}
                       label={tag.name}
                       size="small"
                     />
                   </TableCell>
-                  <TableCell align="center">
-                    {tag?.contacts?.length}
-                    <IconButton
-                      size="small"
-                      onClick={() => handleShowContacts(tag?.contacts, tag)}
-                      disabled={tag?.contacts?.length === 0}
-                    >
-                      <MoreHoriz />
-                    </IconButton>
-                  </TableCell>
-
+                  <TableCell align="center">{tag.ticketsCount}</TableCell>
                   <TableCell align="center">
                     <IconButton size="small" onClick={() => handleEditTag(tag)}>
                       <EditIcon />
@@ -287,7 +280,7 @@ const Tags = () => {
 
                     <IconButton
                       size="small"
-                      onClick={() => {
+                      onClick={(e) => {
                         setConfirmModalOpen(true);
                         setDeletingTag(tag);
                       }}
@@ -297,8 +290,7 @@ const Tags = () => {
                   </TableCell>
                 </TableRow>
               ))}
-
-              {loading && <TableRowSkeleton key="skeleton" columns={4} />}
+              {loading && <TableRowSkeleton columns={4} />}
             </>
           </TableBody>
         </Table>

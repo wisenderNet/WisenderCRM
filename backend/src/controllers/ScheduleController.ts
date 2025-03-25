@@ -8,11 +8,6 @@ import ListService from "../services/ScheduleServices/ListService";
 import UpdateService from "../services/ScheduleServices/UpdateService";
 import ShowService from "../services/ScheduleServices/ShowService";
 import DeleteService from "../services/ScheduleServices/DeleteService";
-import Schedule from "../models/Schedule";
-
-import path from "path";
-import fs from "fs";
-import { head } from "lodash";
 
 type IndexQuery = {
   searchParam?: string;
@@ -41,18 +36,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     body,
     sendAt,
     contactId,
-    userId,
-    ticketUserId,
-    queueId,
-    openTicket,
-    statusTicket,
-    whatsappId,
-    intervalo = 1,
-		valorIntervalo = 0,
-		enviarQuantasVezes = 1,
-		tipoDias=  4,
-    contadorEnvio = 0,
-    assinar = false
+    userId
   } = req.body;
   const { companyId } = req.user;
 
@@ -61,23 +45,11 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     sendAt,
     contactId,
     companyId,
-    userId,
-    ticketUserId,
-    queueId,
-    openTicket,
-    statusTicket,
-    whatsappId,
-    intervalo,
-    valorIntervalo,
-    enviarQuantasVezes,
-    tipoDias,
-    contadorEnvio,
-    assinar
+    userId
   });
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-schedule`, {
+  io.emit("schedule", {
     action: "create",
     schedule
   });
@@ -109,8 +81,7 @@ export const update = async (
   const schedule = await UpdateService({ scheduleData, id: scheduleId, companyId });
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-schedule`, {
+  io.emit("schedule", {
     action: "update",
     schedule
   });
@@ -128,53 +99,10 @@ export const remove = async (
   await DeleteService(scheduleId, companyId);
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company${companyId}-schedule`, {
+  io.emit("schedule", {
     action: "delete",
     scheduleId
   });
 
   return res.status(200).json({ message: "Schedule deleted" });
-};
-
-export const mediaUpload = async (
-  req: Request,
-  res: Response
-): Promise<Response> => {
-  const { id } = req.params;
-  const files = req.files as Express.Multer.File[];
-  const file = head(files);
-
-  try {
-    const schedule = await Schedule.findByPk(id);
-    schedule.mediaPath = file.filename;
-    schedule.mediaName = file.originalname;
-
-    await schedule.save();
-    return res.send({ mensagem: "Arquivo Anexado" });
-    } catch (err: any) {
-      throw new AppError(err.message);
-  }
-};
-
-export const deleteMedia = async (
-  req: Request,
-  res: Response
-): Promise<Response> => {
-  const { id } = req.params;
-
-  try {
-    const schedule = await Schedule.findByPk(id);
-    const filePath = path.resolve("public", schedule.mediaPath);
-    const fileExists = fs.existsSync(filePath);
-    if (fileExists) {
-      fs.unlinkSync(filePath);
-    }
-    schedule.mediaPath = null;
-    schedule.mediaName = null;
-    await schedule.save();
-    return res.send({ mensagem: "Arquivo Excluído" });
-    } catch (err: any) {
-      throw new AppError(err.message);
-  }
 };

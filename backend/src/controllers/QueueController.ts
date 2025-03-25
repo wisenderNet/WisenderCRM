@@ -26,20 +26,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const {
-    name,
-    color,
-    greetingMessage,
-    outOfHoursMessage,
-    schedules,
-    chatbots,
-    orderQueue, 
-    tempoRoteador, 
-    ativarRoteador,
-    integrationId,
-    fileListId,
-    closeTicket
-  } = req.body;
+  const { name, color, greetingMessage, outOfHoursMessage, schedules } =
+    req.body;
   const { companyId } = req.user;
 
   const queue = await CreateQueueService({
@@ -47,20 +35,12 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     color,
     greetingMessage,
     companyId,
-    outOfHoursMessage, 
-    tempoRoteador: tempoRoteador ===""? 0 : tempoRoteador, 
-    ativarRoteador,
-    schedules,
-    chatbots, 
-    orderQueue: orderQueue === "" ? null : orderQueue,
-    integrationId: integrationId === "" ? null : integrationId,
-    fileListId: fileListId === "" ? null : fileListId,
-    closeTicket
+    outOfHoursMessage,
+    schedules
   });
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company-${companyId}-queue`, {
+  io.emit(`company-${companyId}-queue`, {
     action: "update",
     queue
   });
@@ -84,39 +64,10 @@ export const update = async (
   const { queueId } = req.params;
   const { companyId } = req.user;
 
-  const {
-    name,
-    color,
-    greetingMessage,
-    outOfHoursMessage,
-    schedules,
-    chatbots,
-    orderQueue, 
-    tempoRoteador, 
-    ativarRoteador,
-    integrationId,
-    fileListId,
-    closeTicket
-  } = req.body;
-
-  const queue = await UpdateQueueService(queueId, 
-    {name,
-    color,
-    greetingMessage,
-    outOfHoursMessage, 
-    tempoRoteador: tempoRoteador ===""? 0 : tempoRoteador, 
-    ativarRoteador,
-    schedules,
-    chatbots, 
-    orderQueue: orderQueue === "" ? null : orderQueue,
-    integrationId: integrationId === "" ? null : integrationId,
-    fileListId: fileListId === "" ? null : fileListId,
-    closeTicket},
-    companyId);
+  const queue = await UpdateQueueService(queueId, req.body, companyId);
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company-${companyId}-queue`, {
+  io.emit(`company-${companyId}-queue`, {
     action: "update",
     queue
   });
@@ -134,8 +85,7 @@ export const remove = async (
   await DeleteQueueService(queueId, companyId);
 
   const io = getIO();
-  io.of(String(companyId))
-  .emit(`company-${companyId}-queue`, {
+  io.emit(`company-${companyId}-queue`, {
     action: "delete",
     queueId: +queueId
   });

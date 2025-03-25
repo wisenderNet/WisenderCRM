@@ -20,6 +20,14 @@ const usePlans = () => {
         return data;
     }
 
+    const finder = async (id) => {
+        const { data } = await api.request({
+            url: `/plans/${id}`,
+            method: 'GET'
+        });
+        return data;
+    }
+
     const save = async (data) => {
         const { data: responseData } = await api.request({
             url: '/plans',
@@ -46,22 +54,13 @@ const usePlans = () => {
         return data;
     }
 
-    const getPlanCompany = async (params, id) => {
-        const { data } = await api.request({
-            url: `/companies/listPlan/${id}`,
-            method: 'GET',
-            params
-        });
-        return data;
-    }
-
     return {
         getPlanList,
         list,
         save,
         update,
-        remove,
-        getPlanCompany
+        finder,
+        remove
     }
 }
 

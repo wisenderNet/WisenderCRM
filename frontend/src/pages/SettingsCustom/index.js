@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import MainContainer from "../../components/MainContainer";
 import MainHeader from "../../components/MainHeader";
 import Title from "../../components/Title";
@@ -11,18 +11,15 @@ import CompaniesManager from "../../components/CompaniesManager";
 import PlansManager from "../../components/PlansManager";
 import HelpsManager from "../../components/HelpsManager";
 import Options from "../../components/Settings/Options";
-import Whitelabel from "../../components/Settings/Whitelabel";
 
 import { i18n } from "../../translate/i18n.js";
 import { toast } from "react-toastify";
 
 import useCompanies from "../../hooks/useCompanies";
-import { AuthContext } from "../../context/Auth/AuthContext";
+import useAuth from "../../hooks/useAuth.js";
+import useSettings from "../../hooks/useSettings";
 
 import OnlyForSuperUser from "../../components/OnlyForSuperUser";
-import useCompanySettings from "../../hooks/useSettings/companySettings";
-import useSettings from "../../hooks/useSettings";
-import ForbiddenPage from "../../components/ForbiddenPage/index.js";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -35,8 +32,7 @@ const useStyles = makeStyles((theme) => ({
     flex: 1,
   },
   tab: {
-    // background: "#f2f5f3",
-    backgroundColor: theme.mode === 'light' ? "#f2f2f2" : "#7f7f7f",
+    backgroundColor: theme.palette.options,
     borderRadius: 4,
   },
   paper: {
@@ -67,41 +63,33 @@ const SettingsCustom = () => {
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState({});
   const [settings, setSettings] = useState({});
-  const [oldSettings, setOldSettings] = useState({});
   const [schedulesEnabled, setSchedulesEnabled] = useState(false);
 
+  const { getCurrentUserInfo } = useAuth();
   const { find, updateSchedules } = useCompanies();
-
-  //novo hook
-  const { getAll: getAllSettings } = useCompanySettings();
-  const { getAll: getAllSettingsOld } = useSettings();
-  const { user, socket } = useContext(AuthContext);
+  const { getAll: getAllSettings } = useSettings();
 
   useEffect(() => {
     async function findData() {
       setLoading(true);
       try {
-        const companyId = user.companyId;
+        const companyId = localStorage.getItem("companyId");
         const company = await find(companyId);
-
-        const settingList = await getAllSettings(companyId);
-
-        const settingListOld = await getAllSettingsOld();
-
+        const settingList = await getAllSettings();
         setCompany(company);
         setSchedules(company.schedules);
         setSettings(settingList);
-        setOldSettings(settingListOld);
 
-        /*  if (Array.isArray(settingList)) {
-           const scheduleType = settingList.find(
-             (d) => d.key === "scheduleType"
-           );
-           if (scheduleType) {
-             setSchedulesEnabled(scheduleType.value === "company");
-           }
-         } */
-        setSchedulesEnabled(settingList.scheduleType === "company");
+        if (Array.isArray(settingList)) {
+          const scheduleType = settingList.find(
+            (d) => d.key === "scheduleType"
+          );
+          if (scheduleType) {
+            setSchedulesEnabled(scheduleType.value === "company");
+          }
+        }
+
+        const user = await getCurrentUserInfo();
         setCurrentUser(user);
       } catch (e) {
         toast.error(e);
@@ -113,6 +101,35 @@ const SettingsCustom = () => {
   }, []);
 
   const handleTabChange = (event, newValue) => {
+      async function findData() {
+        setLoading(true);
+        try {
+          const companyId = localStorage.getItem("companyId");
+          const company = await find(companyId);
+          const settingList = await getAllSettings();
+          setCompany(company);
+          setSchedules(company.schedules);
+          setSettings(settingList);
+  
+          if (Array.isArray(settingList)) {
+            const scheduleType = settingList.find(
+              (d) => d.key === "scheduleType"
+            );
+            if (scheduleType) {
+              setSchedulesEnabled(scheduleType.value === "company");
+            }
+          }
+  
+          const user = await getCurrentUserInfo();
+          setCurrentUser(user);
+        } catch (e) {
+          toast.error(e);
+        }
+        setLoading(false);
+      }
+      findData();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+
     setTab(newValue);
   };
 
@@ -134,94 +151,83 @@ const SettingsCustom = () => {
 
   return (
     <MainContainer className={classes.root}>
-      {user.profile === "user" ?
-        <ForbiddenPage />
-        :
-        <>
-          <MainHeader>
-            <Title>{i18n.t("settings.title")}</Title>
-          </MainHeader>
-          <Paper className={classes.mainPaper} elevation={1}>
-            <Tabs
-              value={tab}
-              indicatorColor="primary"
-              textColor="primary"
-              scrollButtons="on"
-              variant="scrollable"
-              onChange={handleTabChange}
-              className={classes.tab}
-            >
-              <Tab label={i18n.t("settings.tabs.options")} value={"options"} />
-              {schedulesEnabled && <Tab label="Horários" value={"schedules"} />}
-              {isSuper() ? <Tab label="Empresas" value={"companies"} /> : null}
-              {isSuper() ? <Tab label={i18n.t("settings.tabs.plans")} value={"plans"} /> : null}
-              {isSuper() ? <Tab label={i18n.t("settings.tabs.helps")} value={"helps"} /> : null}
-              {isSuper() ? <Tab label="Whitelabel" value={"whitelabel"} /> : null}
-            </Tabs>
-            <Paper className={classes.paper} elevation={0}>
+      <MainHeader>
+        <Title>{i18n.t("settings.title")}</Title>
+      </MainHeader>
+      <Paper className={classes.mainPaper} elevation={1}>
+        <Tabs
+          value={tab}
+          indicatorColor="primary"
+          textColor="primary"
+          scrollButtons="on"
+          variant="scrollable"
+          onChange={handleTabChange}
+          className={classes.tab}
+        >
+          <Tab label="Opções" value={"options"} />
+          {schedulesEnabled && <Tab label="Horários" value={"schedules"} />}
+          {isSuper() ? <Tab label="Empresas" value={"companies"} /> : null}
+          {isSuper() ? <Tab label="Planos" value={"plans"} /> : null}
+          {isSuper() ? <Tab label="Ajuda" value={"helps"} /> : null}
+        </Tabs>
+        <Paper className={classes.paper} elevation={0}>
+          <TabPanel
+            className={classes.container}
+            value={tab}
+            name={"schedules"}
+          >
+            <SchedulesForm
+              loading={loading}
+              onSubmit={handleSubmitSchedules}
+              initialValues={schedules}
+            />
+          </TabPanel>
+          <OnlyForSuperUser
+            user={currentUser}
+            yes={() => (
               <TabPanel
                 className={classes.container}
                 value={tab}
-                name={"schedules"}
+                name={"companies"}
               >
-                <SchedulesForm
-                  loading={loading}
-                  onSubmit={handleSubmitSchedules}
-                  initialValues={schedules}
-                />
+                <CompaniesManager />
               </TabPanel>
-              <OnlyForSuperUser
-                user={currentUser}
-                yes={() => (
-                  <>
-                    <TabPanel
-                      className={classes.container}
-                      value={tab}
-                      name={"companies"}
-                    >
-                      <CompaniesManager />
-                    </TabPanel>
-
-                    <TabPanel
-                      className={classes.container}
-                      value={tab}
-                      name={"plans"}
-                    >
-                      <PlansManager />
-                    </TabPanel>
-
-                    <TabPanel
-                      className={classes.container}
-                      value={tab}
-                      name={"helps"}
-                    >
-                      <HelpsManager />
-                    </TabPanel>
-                    <TabPanel
-                      className={classes.container}
-                      value={tab}
-                      name={"whitelabel"}
-                    >
-                      <Whitelabel
-                        settings={oldSettings}
-                      />
-                    </TabPanel>
-                  </>
-                )}
-              />
-              <TabPanel className={classes.container} value={tab} name={"options"}>
-                <Options
-                  settings={settings}
-                  oldSettings={oldSettings}
-                  user={currentUser}
-                  scheduleTypeChanged={(value) =>
-                    setSchedulesEnabled(value === "company")
-                  }
-                />
+            )}
+          />
+          <OnlyForSuperUser
+            user={currentUser}
+            yes={() => (
+              <TabPanel
+                className={classes.container}
+                value={tab}
+                name={"plans"}
+              >
+                <PlansManager />
               </TabPanel>
-            </Paper>
-          </Paper>
-        </>}
+            )}
+          />
+          <OnlyForSuperUser
+            user={currentUser}
+            yes={() => (
+              <TabPanel
+                className={classes.container}
+                value={tab}
+                name={"helps"}
+              >
+                <HelpsManager />
+              </TabPanel>
+            )}
+          />
+          <TabPanel className={classes.container} value={tab} name={"options"}>
+            <Options
+              settings={settings}
+              scheduleTypeChanged={(value) =>
+                setSchedulesEnabled(value === "company")
+              }
+            />
+          </TabPanel>
+        </Paper>
+      </Paper>
     </MainContainer>
   );
 };

@@ -15,7 +15,7 @@ import toastError from "../../errors/toastError";
 const useStyles = makeStyles((theme) => ({
   root: {
     width: "100%",
-    height: 400,
+    //height: 400,
     [theme.breakpoints.down("sm")]: {
       maxHeight: "20vh",
     },

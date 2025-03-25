@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { toast } from "react-toastify";
 import api from "../../services/api";
@@ -15,12 +15,9 @@ import { useHistory } from "react-router-dom";
 import { AuthContext } from "../../context/Auth/AuthContext";
 import MessagesList from "../MessagesList";
 import { ReplyMessageProvider } from "../../context/ReplyingMessage/ReplyingMessageContext";
-import { ForwardMessageProvider } from "../../context/ForwarMessage/ForwardMessageContext";
-
 import TicketHeader from "../TicketHeader";
 import TicketInfo from "../TicketInfo";
-
-import html2pdf from "html2pdf.js";
+import { socketConnection } from "../../services/socket";
 
 const drawerWidth = 320;
 
@@ -63,67 +60,120 @@ export default function TicketMessagesDialog({ open, handleClose, ticketId }) {
   const history = useHistory();
   const classes = useStyles();
 
-  const { user, socket } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
 
   const [, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState({});
   const [ticket, setTicket] = useState({});
 
-  const [exportedToPDF, setExportedToPDF] = useState(false);
+  useEffect(() => {
+    let delayDebounceFn = null;
+    if (open) {
+      setLoading(true);
+      delayDebounceFn = setTimeout(() => {
+        const fetchTicket = async () => {
+          try {
+            const { data } = await api.get("/tickets/" + ticketId);
+            const { queueId } = data;
+            const { queues, profile } = user;
 
-  
-  const handleExportToPDF = () => {
-    const messagesListElement = document.getElementById("messagesList"); // Id do elemento que você deseja exportar para PDF
-    const headerElement = document.getElementById("TicketHeader"); // Id do elemento de cabeçalho que você deseja exportar
+            const queueAllowed = queues.find((q) => q.id === queueId);
+            if (queueAllowed === undefined && profile !== "admin") {
+              toast.error("Acesso não permitido");
+              history.push("/tickets");
+              return;
+            }
 
-
-    const pdfOPtions = {
-      margin: 1,
-      filename: `relatório_atendimento_${ticketId}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            setContact(data.contact);
+            setTicket(data);
+            setLoading(false);
+          } catch (err) {
+            setLoading(false);
+            toastError(err);
+          }
+        };
+        fetchTicket();
+      }, 500);
+    }
+    return () => {
+      if (delayDebounceFn !== null) {
+        clearTimeout(delayDebounceFn);
+      }
     };
-
-    if (messagesListElement) {
-      const headerClone = headerElement.cloneNode(true);
-      const messagesListClone = messagesListElement.cloneNode(true);
-
-      const containerElement = document.createElement("div");
-      containerElement.appendChild(headerClone); // Adicione o elemento do cabeçalho
-      containerElement.appendChild(messagesListClone);
-      html2pdf()
-        .from(containerElement)
-        .set(pdfOPtions)
-        .save();
-    } else {
-      toastError("Elemento não encontrado para exportar.");
-    }
-  };
-
-  const handleExportAndClose = () => {
-    if (!exportedToPDF) {
-      handleExportToPDF();
-      setExportedToPDF(true);
-      handleClose(); // Fecha o Dialog
-    }
-  };
+  }, [ticketId, user, history, open]);
 
   useEffect(() => {
-    if (open) {
-      // Execute a exportação para PDF e feche o Dialog
-      handleExportAndClose();
-    }
-  }, [open, ticketId, handleExportAndClose]);
+    const companyId = localStorage.getItem("companyId");
+    let socket = null;
 
+    if (open) {
+      socket = socketConnection({ companyId });
+      socket.on("connect", () => socket.emit("joinChatBox", `${ticket.id}`));
+
+      socket.on(`company-${companyId}-ticket`, (data) => {
+        if (data.action === "update") {
+          setTicket(data.ticket);
+        }
+
+        if (data.action === "delete") {
+          toast.success("Ticket deleted sucessfully.");
+          history.push("/tickets");
+        }
+      });
+
+      socket.on(`company-${companyId}-contact`, (data) => {
+        if (data.action === "update") {
+          setContact((prevState) => {
+            if (prevState.id === data.contact?.id) {
+              return { ...prevState, ...data.contact };
+            }
+            return prevState;
+          });
+        }
+      });
+    }
+
+    return () => {
+      if (socket !== null) {
+        socket.disconnect();
+      }
+    };
+  }, [ticketId, ticket, history, open]);
+
+  const handleDrawerOpen = () => {
+    setDrawerOpen(true);
+  };
+
+  const renderTicketInfo = () => {
+    if (ticket.user !== undefined) {
+      return (
+        <TicketInfo
+          contact={contact}
+          ticket={ticket}
+          onClick={handleDrawerOpen}
+        />
+      );
+    }
+  };
+
+  const renderMessagesList = () => {
+    return (
+      <Box className={classes.root}>
+        <MessagesList
+          ticket={ticket}
+          ticketId={ticket.id}
+          isGroup={ticket.isGroup}
+        ></MessagesList>
+      </Box>
+    );
+  };
 
   return (
     <Dialog maxWidth="md" onClose={handleClose} open={open}>
+      <TicketHeader loading={loading}>{renderTicketInfo()}</TicketHeader>
+      <ReplyMessageProvider>{renderMessagesList()}</ReplyMessageProvider>
       <DialogActions>
-        <Button onClick={handleExportToPDF} color="primary">
-          Exportar para PDF
-        </Button>
         <Button onClick={handleClose} color="primary">
           Fechar
         </Button>
