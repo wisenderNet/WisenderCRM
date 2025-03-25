@@ -12,7 +12,7 @@ import api from "../../services/api";
 const UserLanguageSelector = () => {
     const [langueMenuAnchorEl, setLangueMenuAnchorEl] = useState(null);
 
-    const { user } = useContext(AuthContext);
+    const { user, socket } = useContext(AuthContext);
 
     const handleOpenLanguageMenu = e => {
         setLangueMenuAnchorEl(e.currentTarget);

@@ -14,6 +14,12 @@ import FindService from "../services/CampaignService/FindService";
 
 import Campaign from "../models/Campaign";
 
+import ContactTag from "../models/ContactTag";
+import Ticket from "../models/Ticket";
+import Contact from "../models/Contact";
+import ContactList from "../models/ContactList";
+import ContactListItem from "../models/ContactListItem";
+
 import AppError from "../errors/AppError";
 import { CancelService } from "../services/CampaignService/CancelService";
 import { RestartService } from "../services/CampaignService/RestartService";
@@ -31,6 +37,11 @@ type StoreData = {
   scheduledAt: string;
   companyId: number;
   contactListId: number;
+  tagListId: number | string;
+  userId: number | string;
+  queueId: number | string;
+  statusTicket: string;
+  openTicket: string;
 };
 
 type FindParams = {
@@ -64,18 +75,86 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     throw new AppError(err.message);
   }
 
-  const record = await CreateService({
-    ...data,
-    companyId
-  });
+  if (typeof data.tagListId === 'number') {
 
-  const io = getIO();
-  io.emit(`company-${companyId}-campaign`, {
-    action: "create",
-    record
-  });
+    const tagId = data.tagListId;
+    const campanhaNome = data.name;
 
-  return res.status(200).json(record);
+    async function createContactListFromTag(tagId) {
+
+      const currentDate = new Date();
+      const formattedDate = currentDate.toISOString();
+
+      try {
+        const contactTags = await ContactTag.findAll({ where: { tagId } });
+        const contactIds = contactTags.map((contactTag) => contactTag.contactId);
+
+        const contacts = await Contact.findAll({ where: { id: contactIds } });
+
+        const randomName = `${campanhaNome} | TAG: ${tagId} - ${formattedDate}` // Implement your own function to generate a random name
+        const contactList = await ContactList.create({ name: randomName, companyId: companyId });
+
+        const { id: contactListId } = contactList;
+
+        const contactListItems = contacts.map((contact) => ({
+          name: contact.name,
+          number: contact.number,
+          email: contact.email,
+          contactListId,
+          companyId,
+          isWhatsappValid: true,
+          isGroup: contact.isGroup
+
+        }));
+
+        await ContactListItem.bulkCreate(contactListItems);
+
+        // Return the ContactList ID
+        return contactListId;
+      } catch (error) {
+        console.error('Error creating contact list:', error);
+        throw error;
+      }
+    }
+
+
+    createContactListFromTag(tagId)
+      .then(async (contactListId) => {
+        const record = await CreateService({
+          ...data,
+          companyId,
+          contactListId: contactListId,
+        });
+        const io = getIO();
+        io.of(String(companyId))
+          .emit(`company-${companyId}-campaign`, {
+            action: "create",
+            record
+          });
+        return res.status(200).json(record);
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+        return res.status(500).json({ error: 'Error creating contact list' });
+      });
+
+  } else { // SAI DO CHECK DE TAG
+
+
+    const record = await CreateService({
+      ...data,
+      companyId
+    });
+
+    const io = getIO();
+    io.of(String(companyId))
+      .emit(`company-${companyId}-campaign`, {
+        action: "create",
+        record
+      });
+
+    return res.status(200).json(record);
+  }
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
@@ -91,6 +170,7 @@ export const update = async (
   res: Response
 ): Promise<Response> => {
   const data = req.body as StoreData;
+
   const { companyId } = req.user;
 
   const schema = Yup.object().shape({
@@ -111,10 +191,11 @@ export const update = async (
   });
 
   const io = getIO();
-  io.emit(`company-${companyId}-campaign`, {
-    action: "update",
-    record
-  });
+  io.of(String(companyId))
+    .emit(`company-${companyId}-campaign`, {
+      action: "update",
+      record
+    });
 
   return res.status(200).json(record);
 };
@@ -151,10 +232,11 @@ export const remove = async (
   await DeleteService(id);
 
   const io = getIO();
-  io.emit(`company-${companyId}-campaign`, {
-    action: "delete",
-    id
-  });
+  io.of(String(companyId))
+    .emit(`company-${companyId}-campaign`, {
+      action: "delete",
+      id
+    });
 
   return res.status(200).json({ message: "Campaign deleted" });
 };
@@ -192,11 +274,12 @@ export const deleteMedia = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
+  const { companyId } = req.user;
   const { id } = req.params;
 
   try {
     const campaign = await Campaign.findByPk(id);
-    const filePath = path.resolve("public", campaign.mediaPath);
+    const filePath = path.resolve("public", `company${companyId}`, campaign.mediaPath);
     const fileExists = fs.existsSync(filePath);
     if (fileExists) {
       fs.unlinkSync(filePath);

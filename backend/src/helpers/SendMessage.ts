@@ -1,6 +1,7 @@
 import Whatsapp from "../models/Whatsapp";
 import GetWhatsappWbot from "./GetWhatsappWbot";
 import fs from "fs";
+import formatBody from "./Mustache";
 
 import { getMessageOptions } from "../services/WbotServices/SendWhatsAppMedia";
 
@@ -8,22 +9,29 @@ export type MessageData = {
   number: number | string;
   body: string;
   mediaPath?: string;
+  companyId?: number;
+  mediaName?: string;
 };
 
 export const SendMessage = async (
   whatsapp: Whatsapp,
-  messageData: MessageData
+  messageData: MessageData,
+  isGroup: boolean = false
+
 ): Promise<any> => {
   try {
     const wbot = await GetWhatsappWbot(whatsapp);
-    const chatId = `${messageData.number}@s.whatsapp.net`;
+    const chatId = `${messageData.number}@${!!isGroup ? 'g.us' : 's.whatsapp.net'}`;
+    const companyId = messageData?.companyId ? messageData.companyId.toString(): null;
 
     let message;
 
     if (messageData.mediaPath) {
       const options = await getMessageOptions(
+        messageData.mediaName,
+        messageData.mediaPath,
+        companyId,
         messageData.body,
-        messageData.mediaPath
       );
       if (options) {
         const body = fs.readFileSync(messageData.mediaPath);
@@ -32,7 +40,7 @@ export const SendMessage = async (
         });
       }
     } else {
-      const body = `\u200e${messageData.body}`;
+      const body = formatBody(`${messageData.body}`);
       message = await wbot.sendMessage(chatId, { text: body });
     }
 

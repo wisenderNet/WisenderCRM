@@ -1,11 +1,11 @@
-import { Sequelize, Op } from "sequelize";
+import { Sequelize, Op, Filterable } from "sequelize";
 import QuickMessage from "../../models/QuickMessage";
 
 interface Request {
   searchParam?: string;
   pageNumber?: string;
   companyId: number | string;
-  userId: number | string;
+  userId?: number | string;
 }
 
 interface Response {
@@ -20,22 +20,38 @@ const ListService = async ({
   companyId,
   userId
 }: Request): Promise<Response> => {
-  let whereCondition = {
+  const sanitizedSearchParam = searchParam.toLocaleLowerCase().trim();
+
+  let whereCondition: Filterable["where"] = {
+    // [Op.or]: [
+    //   {
+    shortcode: Sequelize.where(
+      Sequelize.fn("LOWER", Sequelize.col("shortcode")),
+      "LIKE",
+      `%${sanitizedSearchParam}%`
+    )
+    //   },
+    //   {
+    //     message: Sequelize.where(
+    //       Sequelize.fn("LOWER", Sequelize.col("message")),
+    //       "LIKE",
+    //       `%${sanitizedSearchParam}%`
+    //     )
+    //   }
+    // ]
+  };
+
+  whereCondition = {
+    ...whereCondition,
+    companyId,
     [Op.or]: [
       {
-        shortcode: Sequelize.where(
-          Sequelize.fn("LOWER", Sequelize.col("shortcode")),
-          "LIKE",
-          `%${searchParam.toLowerCase().trim()}%`
-        )
+        visao: true // Se "visao" é verdadeiro, todas as mensagens são visíveis
+      },
+      {
+        userId // Se "visao" é falso, apenas as mensagens do usuário atual são visíveis
       }
-    ],
-    companyId: {
-      [Op.eq]: companyId
-    },
-    userId: {
-      [Op.eq]: userId
-    }
+    ]
   };
 
   const limit = 20;

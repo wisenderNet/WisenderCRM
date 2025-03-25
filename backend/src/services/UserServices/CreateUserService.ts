@@ -13,6 +13,20 @@ interface Request {
   queueIds?: number[];
   companyId?: number;
   profile?: string;
+  startWork?: string;
+  endWork?: string;
+  whatsappId?: number;
+  allTicket?: string;
+  defaultTheme?: string;
+  defaultMenu?: string;
+  allowGroup?: boolean;
+  allHistoric?: string;
+  allUserChat?: string;
+  userClosePendingTicket?: string;
+  showDashboard?: string;
+  defaultTicketsManagerWidth?: number;
+  allowRealTime?: string;
+  allowConnections?: string;
 }
 
 interface Response {
@@ -28,7 +42,21 @@ const CreateUserService = async ({
   name,
   queueIds = [],
   companyId,
-  profile = "admin"
+  profile = "admin",
+  startWork,
+  endWork,
+  whatsappId,
+  allTicket,
+  defaultTheme,
+  defaultMenu,
+  allowGroup,
+  allHistoric,
+  allUserChat,
+  userClosePendingTicket,
+  showDashboard,
+  defaultTicketsManagerWidth = 550,
+  allowRealTime,
+  allowConnections
 }: Request): Promise<Response> => {
   if (companyId !== undefined) {
     const company = await Company.findOne({
@@ -55,6 +83,7 @@ const CreateUserService = async ({
 
   const schema = Yup.object().shape({
     name: Yup.string().required().min(2),
+    allHistoric: Yup.string(),
     email: Yup.string()
       .email()
       .required()
@@ -84,7 +113,21 @@ const CreateUserService = async ({
       password,
       name,
       companyId,
-      profile
+      profile,
+      startWork,
+      endWork,
+      whatsappId: whatsappId || null,
+      allTicket,
+      defaultTheme,
+      defaultMenu,
+      allowGroup,
+      allHistoric,
+      allUserChat,
+      userClosePendingTicket,
+      showDashboard,
+      defaultTicketsManagerWidth,
+      allowRealTime,
+      allowConnections
     },
     { include: ["queues", "company"] }
   );

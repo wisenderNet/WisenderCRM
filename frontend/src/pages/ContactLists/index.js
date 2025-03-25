@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useReducer } from "react";
+import React, { useState, useEffect, useReducer, useContext } from "react";
 import { toast } from "react-toastify";
 
 import { useHistory } from "react-router-dom";
@@ -34,7 +34,8 @@ import toastError from "../../errors/toastError";
 import { Grid } from "@material-ui/core";
 
 import planilhaExemplo from "../../assets/planilha.xlsx";
-import { socketConnection } from "../../services/socket";
+// import { SocketContext } from "../../context/Socket/SocketContext";
+import { AuthContext } from "../../context/Auth/AuthContext";
 
 const reducer = (state, action) => {
   if (action.type === "LOAD_CONTACTLISTS") {
@@ -102,6 +103,9 @@ const ContactLists = () => {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [searchParam, setSearchParam] = useState("");
   const [contactLists, dispatch] = useReducer(reducer, []);
+  //   const socketManager = useContext(SocketContext);
+  const { user, socket } = useContext(AuthContext);
+
 
   useEffect(() => {
     dispatch({ type: "RESET" });
@@ -129,10 +133,10 @@ const ContactLists = () => {
   }, [searchParam, pageNumber]);
 
   useEffect(() => {
-    const companyId = localStorage.getItem("companyId");
-    const socket = socketConnection({ companyId });
+    const companyId = user.companyId;
+    // const socket = socketManager.GetSocket();
 
-    socket.on(`company-${companyId}-ContactList`, (data) => {
+    const onContactListEvent = (data) => {
       if (data.action === "update" || data.action === "create") {
         dispatch({ type: "UPDATE_CONTACTLIST", payload: data.record });
       }
@@ -140,10 +144,12 @@ const ContactLists = () => {
       if (data.action === "delete") {
         dispatch({ type: "DELETE_CONTACTLIST", payload: +data.id });
       }
-    });
+    };
+
+    socket.on(`company-${companyId}-ContactList`, onContactListEvent);
 
     return () => {
-      socket.disconnect();
+      socket.off(`company-${companyId}-ContactList`, onContactListEvent);
     };
   }, []);
 
@@ -199,8 +205,7 @@ const ContactLists = () => {
       <ConfirmationModal
         title={
           deletingContactList &&
-          `${i18n.t("contactLists.confirmationModal.deleteTitle")} ${
-            deletingContactList.name
+          `${i18n.t("contactLists.confirmationModal.deleteTitle")} ${deletingContactList.name
           }?`
         }
         open={confirmModalOpen}
@@ -260,15 +265,9 @@ const ContactLists = () => {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell align="center">
-                {i18n.t("contactLists.table.name")}
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("contactLists.table.contacts")}
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("contactLists.table.actions")}
-              </TableCell>
+              <TableCell align="center">{i18n.t("contactLists.table.name")}</TableCell>
+              <TableCell align="center">{i18n.t("contactLists.table.contacts")}</TableCell>
+              <TableCell align="center">{i18n.t("contactLists.table.actions")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -276,9 +275,7 @@ const ContactLists = () => {
               {contactLists.map((contactList) => (
                 <TableRow key={contactList.id}>
                   <TableCell align="center">{contactList.name}</TableCell>
-                  <TableCell align="center">
-                    {contactList.contactsCount || 0}
-                  </TableCell>
+                  <TableCell align="center">{contactList.contactsCount || 0}</TableCell>
                   <TableCell align="center">
                     <a href={planilhaExemplo} download="planilha.xlsx">
                       <IconButton size="small" title="Baixar Planilha Exemplo">

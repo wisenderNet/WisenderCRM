@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useHistory } from "react-router-dom";
 import QRCode from 'react-qr-code';
 import { SuccessContent, Total } from './style';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import { FaCopy, FaCheckCircle } from 'react-icons/fa';
-import { socketConnection } from "../../../services/socket";
 import { useDate } from "../../../hooks/useDate";
 import { toast } from "react-toastify";
+import { AuthContext } from "../../../context/Auth/AuthContext";
 
 function CheckoutSuccess(props) {
 
@@ -14,22 +14,34 @@ function CheckoutSuccess(props) {
   const [pixString,] = useState(pix.qrcode.qrcode);
   const [copied, setCopied] = useState(false);
   const history = useHistory();
+  //   const socketManager = useContext(SocketContext);
+  const { user, socket } = useContext(AuthContext);
+
 
   const { dateToClient } = useDate();
 
   useEffect(() => {
-    const companyId = localStorage.getItem("companyId");
-    const socket = socketConnection({ companyId });
-    socket.on(`company-${companyId}-payment`, (data) => {
+    const companyId = user.companyId;
+    if (companyId) {
+      // const socket = socketManager.GetSocket();
 
-      if (data.action === "CONCLUIDA") {
-        toast.success(`Sua licença foi renovada até ${dateToClient(data.company.dueDate)}!`);
-        setTimeout(() => {
-          history.push("/");
-        }, 4000);
+      const onCompanyPayment = (data) => {
+
+        if (data.action === "CONCLUIDA") {
+          toast.success(`Sua licença foi renovada até ${dateToClient(data.company.dueDate)}!`);
+          setTimeout(() => {
+            history.push("/");
+          }, 4000);
+        }
       }
-    });
-  }, [history]);
+
+      socket.on(`company-${companyId}-payment`, onCompanyPayment);
+
+      return () => {
+        socket.off(`company-${companyId}-payment`, onCompanyPayment);
+      }
+    }
+  }, [socket]);
 
   const handleCopyQR = () => {
     setTimeout(() => {

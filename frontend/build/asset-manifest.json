@@ -1,0 +1,41 @@
+{
+  "files": {
+    "main.css": "/static/css/main.4ab74a11.chunk.css",
+    "main.js": "/static/js/main.0b639280.chunk.js",
+    "runtime-main.js": "/static/js/runtime-main.ca7c692e.js",
+    "static/css/2.2bf035c9.chunk.css": "/static/css/2.2bf035c9.chunk.css",
+    "static/js/2.14746a71.chunk.js": "/static/js/2.14746a71.chunk.js",
+    "static/js/3.5adb75f9.chunk.js": "/static/js/3.5adb75f9.chunk.js",
+    "static/js/4.4674cf0b.chunk.js": "/static/js/4.4674cf0b.chunk.js",
+    "static/js/5.a7313cc6.chunk.js": "/static/js/5.a7313cc6.chunk.js",
+    "index.html": "/index.html",
+    "precache-manifest.be85b79cd550018c079f98326d34a28c.js": "/precache-manifest.be85b79cd550018c079f98326d34a28c.js",
+    "service-worker.js": "/service-worker.js",
+    "static/js/2.14746a71.chunk.js.LICENSE.txt": "/static/js/2.14746a71.chunk.js.LICENSE.txt",
+    "static/js/3.5adb75f9.chunk.js.LICENSE.txt": "/static/js/3.5adb75f9.chunk.js.LICENSE.txt",
+    "static/js/4.4674cf0b.chunk.js.LICENSE.txt": "/static/js/4.4674cf0b.chunk.js.LICENSE.txt",
+    "static/js/5.a7313cc6.chunk.js.LICENSE.txt": "/static/js/5.a7313cc6.chunk.js.LICENSE.txt",
+    "static/media/chat_notify.mp3": "/static/media/chat_notify.2529c259.mp3",
+    "static/media/favicon.ico": "/static/media/favicon.26bbeae4.ico",
+    "static/media/flowbuilders.5301f11e.png": "/static/media/flowbuilders.5301f11e.png",
+    "static/media/instagram.79535458.png": "/static/media/instagram.79535458.png",
+    "static/media/logo-black.77a44819.png": "/static/media/logo-black.77a44819.png",
+    "static/media/logo.d73d7b92.png": "/static/media/logo.d73d7b92.png",
+    "static/media/n8n.55dcf941.png": "/static/media/n8n.55dcf941.png",
+    "static/media/planilha.xlsx": "/static/media/planilha.549edeba.xlsx",
+    "static/media/sound.mp3": "/static/media/sound.9fd5812c.mp3",
+    "static/media/typebot-ico.fabcdd66.png": "/static/media/typebot-ico.fabcdd66.png",
+    "static/media/upload.c42899bb.gif": "/static/media/upload.c42899bb.gif",
+    "static/media/wa-background-dark.4c52474f.png": "/static/media/wa-background-dark.4c52474f.png",
+    "static/media/wa-background.cd00123e.png": "/static/media/wa-background.cd00123e.png",
+    "static/media/webhook.20ba7126.png": "/static/media/webhook.20ba7126.png",
+    "static/media/whatsapp.7f02d15e.png": "/static/media/whatsapp.7f02d15e.png"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.ca7c692e.js",
+    "static/css/2.2bf035c9.chunk.css",
+    "static/js/2.14746a71.chunk.js",
+    "static/css/main.4ab74a11.chunk.css",
+    "static/js/main.0b639280.chunk.js"
+  ]
+}

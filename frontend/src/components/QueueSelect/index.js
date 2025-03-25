@@ -17,7 +17,7 @@ const useStyles = makeStyles(theme => ({
 	chip: {
 		margin: 2,
 	},
-}));
+})); 
 
 const QueueSelect = ({ selectedQueueIds, onChange }) => {
 	const classes = useStyles();
@@ -75,7 +75,7 @@ const QueueSelect = ({ selectedQueueIds, onChange }) => {
 								})}
 						</div>
 					)}
-				>
+				>					
 					{queues.map(queue => (
 						<MenuItem key={queue.id} value={queue.id}>
 							{queue.name}
